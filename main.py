@@ -117,5 +117,4 @@ def main():
     push_changes(custom.DESTINATION_REPO, custom.DESTINATION_BRANCH)
 
 if __name__ == "__main__":
-   
-
+    main()
