@@ -7,16 +7,19 @@ import custom
 import requests
 import json
 import openai
+import time
 
 def clone_repo(repo_url, branch_name):
     """ Clone a repository from a URL into a specified directory. """
     if os.path.exists("repo"):
         shutil.rmtree("repo")
+    print(f"Cloning repository from {repo_url}...")
     Repo.clone_from(repo_url, "repo", branch=branch_name)
     return "repo"
 
 def process_file(file_path, prompt):
     """ Send file content to the LLM and get the modified content back. """
+    print(f"Processing file: {file_path}")
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
     
@@ -24,20 +27,23 @@ def process_file(file_path, prompt):
     
     with open(file_path, 'w', encoding='utf-8') as file:
         file.write(modified_content)
+    print(f"Finished processing {file_path}")
 
 def apply_llm(content, prompt):
     """ Apply the language model to the content based on the prompt. """
     if custom.LLM_PROVIDER == "OpenAI":
-        return openai_process(content, prompt)
+        result = openai_process(content, prompt)
     elif custom.LLM_PROVIDER == "GroqCloud":
-        return groqcloud_process(content, prompt)
+        result = groqcloud_process(content, prompt)
     else:
-        return content
+        result = content
+    time.sleep(custom.LLM_WAIT)  # Delay between API calls to avoid overloading
+    return result
 
 def openai_process(content, prompt):
     """ Process content using OpenAI's API. """
     openai.api_key = config.OPENAI_KEY
-
+    print("Sending content to OpenAI...")
     # Creating the messages array as in the conversational model
     messages = [
         {"role": "system", "content": prompt},
@@ -54,13 +60,13 @@ def openai_process(content, prompt):
         frequency_penalty=0,
         presence_penalty=0
     )
-
+    print("Received response from OpenAI.")
     # Assuming the response from OpenAI is structured with choices and message contents
     return response.choices[0].message['content'].strip()
 
-
 def groqcloud_process(content, prompt):
     """ Process content using GroqCloud's API. """
+    print("Sending content to GroqCloud...")
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {config.GROQCLOUD_KEY}",
@@ -86,7 +92,7 @@ def groqcloud_process(content, prompt):
         response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()
         response_data = response.json()
-        # Assuming the relevant content is in the first choice of the first message
+        print("Received response from GroqCloud.")
         return response_data['choices'][0]['message']['content']
     except requests.exceptions.RequestException as e:
         print(f"An error occurred during the GroqCloud API request: {e}")
@@ -94,10 +100,12 @@ def groqcloud_process(content, prompt):
 
 def push_changes(destination_repo, destination_branch):
     """ Push changes to the destination repository. """
+    print("Committing changes and pushing to the repository...")
     repo = Repo("repo")
     repo.git.add(all=True)
     repo.git.commit('-m', 'Processed files with LLM')
     repo.git.push("origin", destination_branch)
+    print("Pushed changes successfully.")
 
 def main():
     clone_repo(custom.SOURCE_REPO, custom.SOURCE_BRANCH)
@@ -109,4 +117,5 @@ def main():
     push_changes(custom.DESTINATION_REPO, custom.DESTINATION_BRANCH)
 
 if __name__ == "__main__":
-    main()
+   
+
