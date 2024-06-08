@@ -136,8 +136,10 @@ def main():
         os.chdir("repo")  # Change directory to the cloned repo
         print(f"Changed to repository directory: {os.getcwd()}")
 
-        # Traverse the directory tree and process Python files
+        # Traverse the directory tree and process Python files, skipping hidden directories
         for root, dirs, files in os.walk("."):
+            # Skip hidden directories
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
             print(f"Entering directory: {root}")
             for file in files:
                 if file.endswith(".py"):  # Assuming we're processing Python files
@@ -149,6 +151,6 @@ def main():
         push_changes(custom.DESTINATION_REPO, custom.DESTINATION_BRANCH)
     except Exception as e:
         print(f"An error occurred: {e}")
-
+        
 if __name__ == "__main__":
     main()
