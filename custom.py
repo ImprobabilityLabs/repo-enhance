@@ -6,5 +6,6 @@ DESTINATION_BRANCH = "enhanced"
 
 LLM_MODEL = "text-davinci-003"
 LLM_PROVIDER = "OpenAI"  # Options: "OpenAI", "GroqCloud"
+MAX_TOKENS = 2048
 
 SYSTEM_PROMPT = "Refactor the following code for better performance and readability:"
