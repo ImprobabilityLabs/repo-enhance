@@ -8,6 +8,7 @@ import requests
 import json
 import openai
 import time
+import shutil  
 
 def clone_repo(repo_url, branch_name):
     """ Clone a repository from a URL into a specified directory. """
