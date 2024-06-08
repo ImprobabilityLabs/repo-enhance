@@ -9,6 +9,8 @@ import json
 import openai
 import time
 import shutil  
+import ast
+import astor
 
 def clone_repo(repo_url, branch_name):
     """ Clone a repository from a URL into a specified directory. """
@@ -18,16 +20,36 @@ def clone_repo(repo_url, branch_name):
     Repo.clone_from(repo_url, "repo", branch=branch_name)
     return "repo"
 
+def parse_python_functions(content):
+    """ Parse Python content into functions and other code parts using AST. """
+    tree = ast.parse(content)
+    functions = []
+    other_parts = []
+
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
+            functions.append(node)
+        else:
+            other_parts.append(node)
+
+    return functions, other_parts
+
 def process_file(file_path, prompt):
-    """ Send file content to the LLM and get the modified content back. """
+    """ Send file content to the LLM and get the modified content back, function by function. """
     print(f"Processing file: {file_path}")
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
-    
-    modified_content = apply_llm(content, prompt)
-    
+
+    functions, other_parts = parse_python_functions(content)
+    processed_content = [astor.to_source(part) for part in other_parts]  # Process non-function parts as is
+
+    for function in functions:
+        original_function_code = astor.to_source(function)
+        modified_function_code = apply_llm(original_function_code, prompt)
+        processed_content.append(modified_function_code)
+
     with open(file_path, 'w', encoding='utf-8') as file:
-        file.write(modified_content)
+        file.writelines(processed_content)
     print(f"Finished processing {file_path}")
 
 def apply_llm(content, prompt):
@@ -122,7 +144,6 @@ def push_changes(destination_repo, destination_branch):
         print("Pushed changes successfully.")
     except Exception as e:
         print(f"An error occurred: {e}")
-
 
 def main():
     try:
