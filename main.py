@@ -102,19 +102,27 @@ def groqcloud_process(content, prompt):
 def push_changes(destination_repo, destination_branch):
     """ Push changes to the destination repository. """
     print("Committing changes and pushing to the repository...")
-    repo = Repo("repo")
-    repo.git.add(all=True)
-    repo.git.commit('-m', 'Processed files with LLM')
-    repo.git.push("origin", destination_branch)
-    print("Pushed changes successfully.")
+    print(f"Current directory: {os.getcwd()}")  # Print current working directory to debug
+    try:
+        repo = Repo('.')  # Assuming the current working directory is the root of the repository
+        repo.git.add(all=True)
+        repo.git.commit('-m', 'Processed files with LLM')
+        repo.git.push("origin", destination_branch)
+        print("Pushed changes successfully.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 def main():
+    os.chdir('/opt/improbability/repo-enhance')  # Ensure script starts at the right directory
     clone_repo(custom.SOURCE_REPO, custom.SOURCE_BRANCH)
-    os.chdir("repo")
+    os.chdir("repo")  # Change directory to the cloned repo
+    print(f"Changed to directory: {os.getcwd()}")  # Confirm directory change
     for root, dirs, files in os.walk("."):
         for file in files:
             if file.endswith(".py"):  # Assuming we're processing Python files
-                process_file(os.path.join(root, file), custom.SYSTEM_PROMPT)
+                file_path = os.path.join(root, file)
+                print(f"Processing file: {file_path}")
+                process_file(file_path, custom.SYSTEM_PROMPT)
     push_changes(custom.DESTINATION_REPO, custom.DESTINATION_BRANCH)
 
 if __name__ == "__main__":
