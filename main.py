@@ -105,6 +105,17 @@ def push_changes(destination_repo, destination_branch):
     print(f"Current directory: {os.getcwd()}")  # Print current working directory to debug
     try:
         repo = Repo('.')  # Assuming the current working directory is the root of the repository
+        current_branch = repo.active_branch
+        if destination_branch != current_branch.name:
+            if destination_branch not in repo.heads:
+                # Create new branch locally if it doesn't exist
+                new_branch = repo.create_head(destination_branch)
+                new_branch.checkout()
+            else:
+                # Checkout the existing local branch
+                repo.heads[destination_branch].checkout()
+        # Set the upstream to the new remote branch
+        repo.git.push('--set-upstream', 'origin', destination_branch)
         repo.git.add(all=True)
         repo.git.commit('-m', 'Processed files with LLM')
         repo.git.push("origin", destination_branch)
@@ -112,18 +123,32 @@ def push_changes(destination_repo, destination_branch):
     except Exception as e:
         print(f"An error occurred: {e}")
 
+
 def main():
-    os.chdir('/opt/improbability/repo-enhance')  # Ensure script starts at the right directory
-    clone_repo(custom.SOURCE_REPO, custom.SOURCE_BRANCH)
-    os.chdir("repo")  # Change directory to the cloned repo
-    print(f"Changed to directory: {os.getcwd()}")  # Confirm directory change
-    for root, dirs, files in os.walk("."):
-        for file in files:
-            if file.endswith(".py"):  # Assuming we're processing Python files
-                file_path = os.path.join(root, file)
-                print(f"Processing file: {file_path}")
-                process_file(file_path, custom.SYSTEM_PROMPT)
-    push_changes(custom.DESTINATION_REPO, custom.DESTINATION_BRANCH)
+    try:
+        # Change to the root directory where the script should run
+        os.chdir('/opt/improbability/repo-enhance')
+        print("Changed to script's root directory.")
+
+        # Clone or pull the latest changes from the source repository
+        if not os.path.exists("repo"):
+            clone_repo(custom.SOURCE_REPO, custom.SOURCE_BRANCH)
+        os.chdir("repo")  # Change directory to the cloned repo
+        print(f"Changed to repository directory: {os.getcwd()}")
+
+        # Traverse the directory tree and process Python files
+        for root, dirs, files in os.walk("."):
+            print(f"Entering directory: {root}")
+            for file in files:
+                if file.endswith(".py"):  # Assuming we're processing Python files
+                    file_path = os.path.join(root, file)
+                    print(f"Processing file: {file_path}")
+                    process_file(file_path, custom.SYSTEM_PROMPT)
+
+        # Push the changes to the destination repository
+        push_changes(custom.DESTINATION_REPO, custom.DESTINATION_BRANCH)
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     main()
