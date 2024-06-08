@@ -37,12 +37,27 @@ def apply_llm(content, prompt):
 def openai_process(content, prompt):
     """ Process content using OpenAI's API. """
     openai.api_key = config.OPENAI_KEY
-    response = openai.Completion.create(
-        engine=custom.LLM_MODEL,
-        prompt=prompt + "\n\n" + content,
-        max_tokens=custom.MAX_TOKENS
+
+    # Creating the messages array as in the conversational model
+    messages = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": content}
+    ]
+
+    # Using the Chat Completion endpoint
+    response = openai.ChatCompletion.create(
+        model=custom.LLM_MODEL,
+        messages=messages,
+        temperature=1,
+        max_tokens=custom.MAX_TOKENS,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0
     )
-    return response.choices[0].text.strip()
+
+    # Assuming the response from OpenAI is structured with choices and message contents
+    return response.choices[0].message['content'].strip()
+
 
 def groqcloud_process(content, prompt):
     """ Process content using GroqCloud's API. """
@@ -51,14 +66,15 @@ def groqcloud_process(content, prompt):
         "Authorization": f"Bearer {config.GROQCLOUD_KEY}",
         "Content-Type": "application/json"
     }
+    # Building messages with both the system prompt and the user content
+    messages = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": content}
+    ]
+
     payload = {
         "model": f"{custom.LLM_MODEL}",
-        "messages": [
-            {
-                "role": "system",
-                "content": f"{prompt} \n\n {content}"
-            }
-        ],
+        "messages": messages,
         "temperature": 1,
         "max_tokens": custom.MAX_TOKENS,
         "top_p": 1,
@@ -70,11 +86,11 @@ def groqcloud_process(content, prompt):
         response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()
         response_data = response.json()
+        # Assuming the relevant content is in the first choice of the first message
         return response_data['choices'][0]['message']['content']
     except requests.exceptions.RequestException as e:
         print(f"An error occurred during the GroqCloud API request: {e}")
         return content  # Return the original content if there's an error
-
 
 def push_changes(destination_repo, destination_branch):
     """ Push changes to the destination repository. """
