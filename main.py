@@ -49,7 +49,8 @@ def process_file(file_path, prompt):
         processed_content.append(modified_function_code)
 
     with open(file_path, 'w', encoding='utf-8') as file:
-        file.writelines(processed_content)
+        file_content = '\n\n'.join(processed_content)
+        file.writelines(file_content)
     print(f"Finished processing {file_path}")
 
 def apply_llm(content, prompt):
