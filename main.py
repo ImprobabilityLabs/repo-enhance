@@ -4,6 +4,9 @@ import git
 from git import Repo
 import config
 import custom
+import requests
+import json
+import openai
 
 def clone_repo(repo_url, branch_name):
     """ Clone a repository from a URL into a specified directory. """
@@ -33,18 +36,45 @@ def apply_llm(content, prompt):
 
 def openai_process(content, prompt):
     """ Process content using OpenAI's API. """
-    import openai
     openai.api_key = config.OPENAI_KEY
     response = openai.Completion.create(
         engine=custom.LLM_MODEL,
         prompt=prompt + "\n\n" + content,
-        max_tokens=2048
+        max_tokens=custom.MAX_TOKENS
     )
     return response.choices[0].text.strip()
 
 def groqcloud_process(content, prompt):
-    """ Dummy function for GroqCloud processing. To be implemented. """
-    return content  # Dummy return
+    """ Process content using GroqCloud's API. """
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {config.GROQCLOUD_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": f"{custom.LLM_MODEL}",
+        "messages": [
+            {
+                "role": "system",
+                "content": f"{prompt} \n\n {content}"
+            }
+        ],
+        "temperature": 1,
+        "max_tokens": custom.MAX_TOKENS,
+        "top_p": 1,
+        "stream": False,
+        "stop": None
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        response_data = response.json()
+        return response_data['choices'][0]['message']['content']
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred during the GroqCloud API request: {e}")
+        return content  # Return the original content if there's an error
+
 
 def push_changes(destination_repo, destination_branch):
     """ Push changes to the destination repository. """
