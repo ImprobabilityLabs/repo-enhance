@@ -92,19 +92,17 @@ def openai_process(content, prompt):
     return response.choices[0].message['content'].strip()
 
 def groqcloud_process(content, prompt):
-    """ Process content using GroqCloud's API. """
+    """ Process content using GroqCloud's API with retry on rate limit errors (HTTP 429). """
     print("Sending content to GroqCloud...")
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {config.GROQCLOUD_KEY}",
         "Content-Type": "application/json"
     }
-    # Building messages with both the system prompt and the user content
     messages = [
         {"role": "system", "content": prompt},
         {"role": "user", "content": content}
     ]
-
     payload = {
         "model": f"{custom.LLM_MODEL}",
         "messages": messages,
@@ -115,15 +113,27 @@ def groqcloud_process(content, prompt):
         "stop": None
     }
     
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-        response_data = response.json()
-        print("Received response from GroqCloud.")
-        return response_data['choices'][0]['message']['content']
-    except requests.exceptions.RequestException as e:
-        print(f"An error occurred during the GroqCloud API request: {e}")
-        return content  # Return the original content if there's an error
+    max_retries = 3  # Set the maximum number of retries
+    retry_delay = 15  # Set the delay in seconds between retries
+
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            response_data = response.json()
+            print("Received response from GroqCloud.")
+            return response_data['choices'][0]['message']['content']
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
+                print(f"Rate limit exceeded. Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                print(f"HTTP error occurred: {e}")
+                break  # Break the loop for non-retryable HTTP errors
+        except requests.exceptions.RequestException as e:
+            print(f"An error occurred during the GroqCloud API request: {e}")
+            break  # Break the loop for other types of request errors
+    return content  # Return the original content if all retries fail
 
 def push_changes(destination_repo, destination_branch):
     """ Push changes to the destination repository. """
