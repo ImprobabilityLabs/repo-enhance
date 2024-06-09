@@ -35,22 +35,25 @@ def parse_python_functions(content):
     return functions, other_parts
 
 def process_file(file_path, prompt):
-    """ Send file content to the LLM and get the modified content back, function by function. """
+    """ Send file content to the LLM and get the modified content back, function by function or as a whole piece based on file length. """
     print(f"Processing file: {file_path}")
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
 
-    functions, other_parts = parse_python_functions(content)
-    processed_content = [astor.to_source(part) for part in other_parts]  # Process non-function parts as is
+    if len(content.split('\n')) > 175:  # Check if file has more than 175 lines
+        functions, other_parts = parse_python_functions(content)
+        processed_content = [astor.to_source(part) for part in other_parts]  # Process non-function parts as is
 
-    for function in functions:
-        original_function_code = astor.to_source(function)
-        modified_function_code = apply_llm(original_function_code, prompt)
-        processed_content.append(modified_function_code)
+        for function in functions:
+            original_function_code = astor.to_source(function)
+            modified_function_code = apply_llm(original_function_code, prompt)
+            processed_content.append(modified_function_code)
+        processed_content = '\n\n'.join(processed_content)
+    else:
+        processed_content = apply_llm(content, prompt)  # Process the entire content as one piece
 
     with open(file_path, 'w', encoding='utf-8') as file:
-        file_content = '\n\n'.join(processed_content)
-        file.writelines(file_content)
+        file.writelines(processed_content)
     print(f"Finished processing {file_path}")
 
 def apply_llm(content, prompt):
